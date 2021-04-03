@@ -1,23 +1,18 @@
-// npm install fluent-ffmpeg
-
-
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
 const { resolve } = require('path');
 
-const FILE_STORAGE = 'E:\\workspace\\Videos\\1280x720\\full\\mp4\\';
-const CHUNK_STORAGE = 'E:\\workspace\\Videos\\1280x720\\chunks\\mp4\\';
-const fileName = 'original.mp4';
-
 class VideoManager {
 
-    constructor() {
+    constructor(fileStoragePath, chunkStoragePatch) {
         this.meanSegmentDuration = 60;
+        this.FILE_STORAGE = fileStoragePath;
+        this.CHUNK_STORAGE = chunkStoragePatch;
     }
 
     async splitVideoToChunks(fileName) {
 
-        const videoPath = FILE_STORAGE.concat(fileName);
+        const videoPath = this.FILE_STORAGE.concat(fileName);
 
         try {
             if (await this.checkIfFileExists(videoPath)) {
@@ -107,7 +102,7 @@ class VideoManager {
 
     async sliceVideo(sourcePath, chunksAmount, chunkDuration) {
         return new Promise((resolve, reject) => {
-            let outputPath = this.changeStoragePath(sourcePath, CHUNK_STORAGE);
+            let outputPath = this.changeStoragePath(sourcePath, this.CHUNK_STORAGE);
 
             let startTime = 0;
             try {
