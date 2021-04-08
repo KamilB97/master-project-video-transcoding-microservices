@@ -1,167 +1,52 @@
 const ffmpeg = require('fluent-ffmpeg');
-const fs = require('fs');
-const { resolve } = require('path');
+
 
 class VideoManager {
 
-    constructor(fileStoragePath, chunkStoragePatch) {
-        this.meanSegmentDuration = 60;
-        this.FILE_STORAGE = fileStoragePath;
-        this.CHUNK_STORAGE = chunkStoragePatch;
+    constructor() {
+        this.meanSegmentDuration = 120;
     }
 
-    async splitVideoToChunks(fileName) {
+    getOptimalVideoChunkDuration(videoPath) {
 
-        const videoPath = this.FILE_STORAGE.concat(fileName);
+        const duration = this.getVideoDetails();
+        console.log("video duration: " + duration);
 
-        try {
-            if (await this.checkIfFileExists(videoPath)) {
-                let videoDetails = await this.getOptimalVideoChunkDuration(videoPath)
-                let chunksAmount = videoDetails.chunksAmount;
-                let chunkDuration = videoDetails.chunkDuration;
+        if (duration <= meanSegmentDuration) {
+            console.log("duration is less than 120")
 
-                this.sliceVideo(videoPath, chunksAmount, chunkDuration).catch((err) => console.log(err));
-
-            } else {
-                throw 'file do not exist';
-            }
-        } catch (error) {
-            console.log(error);
-        }
-    }
-
-    checkIfFileExists(path) {
-        return new Promise((resolve, reject) => {
-            fs.access(path, (err) => {
-
-                if (err) {
-                    console.log('file do not exist');
-                    reject("Error in check if file exists");
-                }
-                else {
-                    console.log('file exists');
-                    resolve(true);
-                }
-            });
-        });
-    }
-
-    async getOptimalVideoChunkDuration(videoPath) {
-
-        let duration = await this.getVideoDuration(videoPath)
-
-        return new Promise((resolve, reject) => {
-            let optimalChunksAmount = 0;
-            if (duration == 0) {
-                reject('video duration is 0')
-
-            } else if (duration <= this.meanSegmentDuration) {
-
-                optimalChunksAmount = 1;
-
-            } else if (duration > this.meanSegmentDuration) {
-
-                if (duration % this.meanSegmentDuration < this.meanSegmentDuration / 2) {
-                    optimalChunksAmount = Math.floor(duration / this.meanSegmentDuration);
-
-                } else {
-                    optimalChunksAmount = Math.ceil(duration / this.meanSegmentDuration);
-
-                }
-                let response = {
-                    'duration': duration,
-                    'chunksAmount': optimalChunksAmount,
-                    'chunkDuration': duration / optimalChunksAmount
-                }
-
-                resolve(response);
-
-            }
-
-        })
-
-
-    }
-
-    getVideoDuration(videoPath) {
-        console.log("in getVideoDetails");
-        return new Promise((resolve, reject) => {
-            ffmpeg.ffprobe(videoPath, (err, metaData) => {
-                const { duration } = metaData.format;
-
-                if (!err) {
-                    resolve(duration);
-                } else {
-                    reject("problem with reading video details")
-                }
-            })
-        })
-
-
-    }
-
-    async sliceVideo(sourcePath, chunksAmount, chunkDuration) {
-        return new Promise((resolve, reject) => {
-            let outputPath = this.changeStoragePath(sourcePath, this.CHUNK_STORAGE);
-
-            let startTime = 0;
-            try {
-                let chunkOutputPath;
-                for (let i = 0; i < chunksAmount; i++) {
-                    chunkOutputPath = this.concatChunkNumberToPath(outputPath, i);
-
-                    ffmpeg()
-                        .input(sourcePath)
-                        .inputOptions([`-ss ${startTime}`])
-                        .outputOptions([`-t ${chunkDuration}`, '-c:v copy', '-c:a copy'])
-                        .output(chunkOutputPath)
-                        // .on('progress', function (progress) {
-                        //     console.log('Processing: ' + progress.percent + '% done');
-                        // })
-                        .run();
-
-                    startTime += chunkDuration;
-
-                    console.log(`created: ${chunkOutputPath}`)
-                }
-                resolve();
-
-            } catch (error) {
-                console.log("ERROR: " + error);
-                reject('error with splitting video')
-            }
-        })
-    }
-
-
-
-    changeStoragePath(sourcePath, destinationPath) {
-        let lastIndexBeforeFileName = sourcePath.lastIndexOf('\\');
-        let fileName = sourcePath.substring(lastIndexBeforeFileName + 1);
-        let outputPath = destinationPath.concat(fileName);
-        return outputPath;
-
-    }
-
-    concatChunkNumberToPath(path, number) {
-        let indexBeforeVideoFormat = path.lastIndexOf('.');
-        let videoFormat = path.substring(indexBeforeVideoFormat + 1);
-        let pathWithoutVideoFormat = path.substring(0, indexBeforeVideoFormat);
-
-        if (number < 10) {
-            pathWithoutVideoFormat = pathWithoutVideoFormat.concat(`_00${number}`)
-
-        } else if (number >= 10) {
-            pathWithoutVideoFormat = pathWithoutVideoFormat.concat(`_0${number}`)
+            return duration;
 
         } else {
-            pathWithoutVideoFormat = pathWithoutVideoFormat.concat(`_${number}`)
+            console.log("duration is greater than 120")
+            let optimalChunksNumber = 0;
+            if (duration % meanSegmentDuration < meanSegmentDuration / 2) {
+                optimalChunksNumber = Math.floor(duration / meanSegmentDuration);
+
+
+            } else {
+                optimalChunksNumber = Math.ceil(duration / meanSegmentDuration);
+
+            }
+            return duration / optimalChunksNumber;
+
+
+        }
+    }
+
+    getVideoDetails(videoPath) {
+
+        ffmpeg.ffprobe(videoPath, (err, metaData) => {
+            const { duration } = metaData.format;
+
+            return duration
 
         }
 
-        let finalName = pathWithoutVideoFormat.concat('.').concat(videoFormat);
-        return finalName;
+        )
     }
+
 }
 
-module.exports = VideoManager;
+module.exports = { VideoManager, getOptimalVideoChunkDuration }
+

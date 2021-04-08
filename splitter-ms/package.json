@@ -8,5 +8,10 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "amqplib": "^0.7.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "install": "^0.13.0"
+  }
 }
